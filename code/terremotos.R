@@ -1,12 +1,12 @@
 ####
 ####
 ####    Author: Rolando J. Acosta
-####    Data from: https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime=2014-01-01%2000:00:00&endtime=2020-01-15%2023:59:59&maxlatitude=18.684&minlatitude=17.566&maxlongitude=-65.094&minlongitude=-67.972&minmagnitude=1&orderby=time
+####    Data from: https://earthquake.usgs.gov/earthquakes/search/#%7B%22autoUpdate%22%3A%5B%5D%2C%22basemap%22%3A%22grayscale%22%2C%22feed%22%3A%221578075319632%22%2C%22listFormat%22%3A%22default%22%2C%22mapposition%22%3A%5B%5B17.845446982925584%2C-67.79937744140625%5D%2C%5B18.841313810317%2C-66.26129150390625%5D%5D%2C%22overlays%22%3A%5B%22plates%22%5D%2C%22restrictListToMap%22%3A%5B%22restrictListToMap%22%5D%2C%22search%22%3A%7B%22id%22%3A%221578075319632%22%2C%22name%22%3A%22Search%20Results%22%2C%22isSearch%22%3Atrue%2C%22params%22%3A%7B%22starttime%22%3A%222000-01-01%2000%3A00%3A00%22%2C%22endtime%22%3A%222020-01-03%2023%3A59%3A59%22%2C%22maxlatitude%22%3A18.684%2C%22minlatitude%22%3A17.566%2C%22maxlongitude%22%3A-65.094%2C%22minlongitude%22%3A-67.972%2C%22minmagnitude%22%3A1%2C%22orderby%22%3A%22time%22%7D%7D%2C%22sort%22%3A%22newest%22%2C%22timezone%22%3A%22utc%22%2C%22viewModes%22%3A%5B%22list%22%2C%22map%22%5D%2C%22event%22%3Anull%7D
 ####
 
 #### -- DON'T RUN -- ####
 # library(data.table)
-# url <- "https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime=2017-01-01%2000%3A00%3A00&endtime=2020-01-15%2023%3A59%3A59&maxlatitude=18.684&minlatitude=17.566&maxlongitude=-65.094&minlongitude=-67.972&minmagnitude=1&maxmagnitude=10&orderby=time"
+# url <- "https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime=2015-01-01%2000:00:00&endtime=2020-01-18%2023:59:59&maxlatitude=18.684&minlatitude=17.566&maxlongitude=-65.094&minlongitude=-67.972&minmagnitude=1&orderby=time"
 # dat <- fread(url)
 # dat <- dat %>%
 #   as_tibble() %>%
