@@ -6,7 +6,7 @@
 
 #### -- DON'T RUN -- ####
 # library(data.table)
-# url <- "https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime=2015-01-01%2000:00:00&endtime=2020-01-18%2023:59:59&maxlatitude=18.684&minlatitude=17.566&maxlongitude=-65.094&minlongitude=-67.972&minmagnitude=1&orderby=time"
+# url <- "https://earthquake.usgs.gov/fdsnws/event/1/query.csv?starttime=2015-01-01%2000:00:00&endtime=2020-01-21%2023:59:59&maxlatitude=18.684&minlatitude=17.566&maxlongitude=-65.094&minlongitude=-67.972&minmagnitude=1&orderby=time"
 # dat <- fread(url)
 # dat <- dat %>%
 #   as_tibble() %>%
@@ -35,47 +35,6 @@ dates <- expand.grid(2010:2020, 1:12, 1:365) %>%
           arrange(date) %>%
           filter(!(month==2 & day==29))
 
-# -- Time line in Mexico
-tmp_dat_mex <- dat_mex %>%
-  as_tibble() %>%
-  mutate(alpha = mag - min(mag),
-         alpha = alpha / max(alpha),
-         label = paste0(round(mag,2))) %>%
-  filter(time >= "2017-09-01 00:00:00") %>%
-  filter(time <= "2017-09-30 00:00:00") %>%
-  filter(latitude <= 22.5) %>%
-  arrange(desc(time))
-
-# -- Time line in Mexico
-tmp_dat_mex %>%
-  ggplot(aes(time, mag, color=mag, alpha=alpha, size=mag, label=label)) +
-  geom_point(show.legend = FALSE) +
-  geom_point(pch=1, alpha=1, show.legend = FALSE) +
-  geom_point(pch=1, alpha=1, color="black", data = filter(tmp_dat_mex, mag>=5.4), show.legend = FALSE) +
-  geom_text(data = filter(tmp_dat_mex, mag>=5.4, latitude!=17.9223, longitude != -66.7308), show.legend = FALSE,
-            color="black",
-            hjust=-0.5,
-            alpha=1,
-            size=3.5,
-            fontface="bold") +
-  scale_size(range = c(0,2)) +
-  scale_color_gradient(low="#a1d99b", high="red3",
-                       limits = c(0,9),
-                       breaks = c(1:9)) +
-  scale_x_datetime(date_breaks = "1 days", date_labels = "%b %d") +
-  scale_y_continuous(breaks = c(1:9), limits=c(1,9)) +
-  xlab("") +
-  ylab("Magnitude") +
-  ggtitle("Eartquakes in the Southern Mexico Area", subtitle = "September 2017") +
-  theme_minimal() +
-  theme(axis.line   = element_blank(),
-        axis.ticks  = element_line(color="#525252"),
-        axis.text.y = element_text(face="bold", color="#525252"),
-        axis.text.x = element_text(angle=45, hjust=1, face="bold", color="#525252"),
-        axis.title  = element_text(face="bold", color="#525252"),
-        plot.title  = element_text(face="bold", color="#525252"),
-        plot.subtitle = element_text(face="bold", color="#525252"))
-
 # -- Looking at latest earthquakes
 tmp_dat_pr <- dat_pr %>%
   as_tibble() %>%
@@ -85,6 +44,7 @@ tmp_dat_pr <- dat_pr %>%
   mutate(alpha = mag - min(mag),
          alpha = alpha / max(alpha),
          label = paste0(round(mag,2))) %>%
+  filter(grepl("Puerto Rico|PR", place)) %>%
   filter(time >= "2019-12-20 00:00:00") %>%
   arrange(desc(time))
 
@@ -108,7 +68,8 @@ tmp_dat_pr %>%
   scale_y_continuous(breaks = c(1:7), limits=c(1,7)) +
   xlab("") +
   ylab("Magnitude") +
-  ggtitle("Eartquakes in the Puerto Rico Area", subtitle = "From December 20, 2019 to January 11, 2020") +
+  ggtitle("Eartquakes in the Puerto Rico Area", subtitle = "From December 20, 2019 to January 21, 2020") +
+  labs(caption = "By Rolando J. Acosta (Twitter: @RJANunez)") +
   theme_minimal() +
   theme(axis.line   = element_blank(),
         axis.ticks  = element_line(color="#525252"),

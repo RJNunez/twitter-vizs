@@ -22,19 +22,49 @@ pr.quakes <- read_csv("data/seismic-activity-pr.csv") %>%
   arrange(date, time)
 
 # -- Creating a catalog object
+pr.quakes %>% head()
 pr.cat <- catalog(pr.quakes, 
-                  time.begin    = "2019/12/20",
-                  study.start   = "2019/12/28",
-                  study.end     = "2020/01/15",
-                  lat.range     = c(17.6,18.8),
-                  long.range    = c(-67.5, -65.2),
-                  mag.threshold = 1)
+                  # time.begin    = "2015/01/01",
+                  # study.start   = "2020/01/7",
+                  # study.end     = "2020/01/21",
+                  lat.range     = c(17,19),
+                  long.range    = c(-68, -65),
+                  mag.threshold = 3)
 
 # -- Summary of the catalog object
 print(pr.cat)
 
 # -- Viz: Summary of catalog
 plot(pr.cat)
+
+# -- Fitting ETAS model (This takes a while to run)
+nthreads <- parallel::detectCores()
+pr.fit   <- etas(pr.cat, nthreads=nthreads)
+
+# -- Results of ETAS
+print(pr.fit)
+plot(pr.fit)
+rates(pr.fit)
+resid.etas(pr.fit)
+
+pr <- probs(pr.fit)
+summary(pr$prob)
+
+plot(pr.cat$longlat.coord[pr$target & (1 - pr$prob > 0.95), 1:2])
+points(pr.cat$longlat.coord[pr$target & (pr$prob > 0.95), 1:2], pch = 3, col = 2)
+map("world", add = TRUE, col = "grey")
+legend("bottomleft", c("background", "triggered"), pch = c(1, 3), col = 1:2)
+
+pr.res <- resid.etas(pr.fit)
+ks.test(pr.res$U, punif)
+
+
+
+
+
+
+##########################################################################################################
+##########################################################################################################
 
 # -- Viz: Latitude vs Date (Fig 2)
 pr.quakes %>%
@@ -240,12 +270,3 @@ pr.quakes %>%
             opacity  = 0.7, 
             title    = "Magnitude",
             position = "bottomright")
-
-# -- Fitting ETAS model (This takes a while to run)
-pr.fit <- etas(pr.cat)
-
-# -- Results of ETAS
-print(pr.fit)
-plot(pr.fit)
-rates(pr.fit)
-resid.etas(pr.fit)
