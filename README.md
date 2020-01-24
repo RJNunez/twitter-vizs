@@ -11,6 +11,7 @@ Here I store all the code and data to create the visualizations that I publish o
 6. [Analysis of earthquakes in Puerto Rico](https://twitter.com/RJANunez/status/1217932386622722049)
 
 ### Folders
+Each topic has its own folder. Within each topic folder there are three folders:
 * code: Contains all the scripts used to create the figures
 * data: Contains the clean datasets, no need to do data cleaning
 * figs: The finished product, all the figures in pdf format are here
