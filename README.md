@@ -9,6 +9,7 @@ Here I store all the code and data to create the visualizations that I publish o
 4. [Earthquakes in Puerto Rico](https://twitter.com/RJANunez/status/1214180338529980421)
 5. [Latest earthquakes in Puerto Rico](https://twitter.com/RJANunez/status/1216400930624737280)
 6. [Analysis of earthquakes in Puerto Rico](https://twitter.com/RJANunez/status/1217932386622722049)
+7. [Covid19 in Puerto Rico](https://twitter.com/RJANunez/status/1242473370022707202)
 
 ### Folders
 Each topic has its own folder. Within each topic folder there are three folders:
