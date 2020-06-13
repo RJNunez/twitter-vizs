@@ -67,7 +67,7 @@ pop <- approx_demographics(pop,
 counts <- left_join(dat, pop, by=c("date", "country"))
 
 # -- Control and exclude dates
-exclude       <- seq(make_date(2020, 01, 01), make_date(2020, 05, 31), "days")
+exclude       <- seq(make_date(2020, 01, 01), make_date(2020, 12, 31), "days")
 control_dates <- seq(make_date(2010, 01, 01), make_date(2019, 12, 31), "days")
 
 # -- Computing percent_change
@@ -77,12 +77,13 @@ percent_change <- map_df(countries, function(x){
   fit <- suppressMessages(counts %>%
                             filter(country == x) %>%
                             excess_model(.,
-                                         start          = make_date(2020, 01, 01),
-                                         end            = make_date(2020, 06, 30),
-                                         exclude        = exclude,
-                                         control.dates  = control_dates,
-                                         model          = "correlated",
-                                         weekday.effect = FALSE))
+                                         start                = make_date(2020, 01, 01),
+                                         end                  = make_date(2020, 06, 30),
+                                         exclude              = exclude,
+                                         trend.knots.per.year = 1/2,
+                                         control.dates        = control_dates,
+                                         model                = "correlated",
+                                         weekday.effect       = FALSE))
   
   
   tibble(date = fit$date, expected = fit$expected, observed = fit$observed, fitted = fit$fitted, se = fit$se) %>%
@@ -102,8 +103,8 @@ ggplot() +
   geom_line(aes(date, fitted, color=country), size=0.80, show.legend = FALSE, data = filter(percent_change, country %in% top_3)) +
   geom_dl(aes(date, fitted, color=country, label=country), method=list(fontface="bold", "last.points"), data = filter(percent_change, country %in% top_3)) +
   scale_y_continuous(labels = scales::percent,
-                     limits = c(-0.20, 1.30), 
-                     breaks = seq(-0.20, 1.20, by=0.20)) +
+                     limits = c(-0.45, 1.70), 
+                     breaks = seq(-0.40, 1.60, by=0.20)) +
   scale_x_date(date_breaks = "1 months",
                date_labels = "%b %d",
                limits = c(make_date(2020,01,01), make_date(2020,07,15))) +
@@ -147,12 +148,13 @@ excess_deaths <- map_df(countries, function(x){
   fit <- suppressMessages(counts %>%
     filter(country == x) %>%
     excess_model(.,
-                 start          = make_date(2020, 03, 01),
-                 end            = make_date(2020, 05, 31),
-                 exclude        = exclude,
-                 control.dates  = control_dates,
-                 model          = "correlated",
-                 weekday.effect = FALSE))
+                 start                = make_date(2020, 03, 01),
+                 end                  = make_date(2020, 05, 31),
+                 exclude              = exclude,
+                 control.dates        = control_dates,
+                 trend.knots.per.year = 1/2,
+                 model                = "correlated",
+                 weekday.effect       = FALSE))
   
   
   excess_cumulative(fit, start = make_date(2020, 01, 01), end = make_date(2020, 06, 30)) %>%
