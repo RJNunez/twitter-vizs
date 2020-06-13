@@ -303,7 +303,6 @@ excess_deaths %>%
          upr = dif + 1.96 * se) %>%
   select(dif, lwr, upr)
 
-
 # -- Spain: Excess deaths vs covid 19
 x <- "Spain"
 excess_deaths %>%
@@ -346,6 +345,43 @@ x <- "Peru"
 excess_deaths %>%
   left_join(eudat, by=c("date", "country")) %>%
   filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                    values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
+
+# -- Chile: Excess deaths vs covid 19
+x <- "Chile"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>% 
   ggplot(aes(date, fitted)) +
   geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
   geom_line(aes(color="Excess \ndeaths")) +
