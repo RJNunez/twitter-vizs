@@ -1,4 +1,5 @@
 # -- Libraries
+library(directlabels)
 library(excessmort)
 library(data.table)
 library(tidyverse)
@@ -6,7 +7,7 @@ library(lubridate)
 library(ggthemes)
 library(scales)
 library(readxl)
-                    
+
 ### --------- ------------------------------------ ---------
 ### --------- Loading and wrangling mortality data ---------
 ### --------- ------------------------------------ ---------
@@ -59,21 +60,15 @@ pop <- approx_demographics(pop,
 ### --------- Loading and wrangling population data ---------
 ### --------- ------------------------------------- ---------
 
+### --------- ----------------------------- ---------
+### --------- Percent increase in mortality ---------
+### --------- ----------------------------- ---------
 # -- Putting everything together
 counts <- left_join(dat, pop, by=c("date", "country"))
 
 # -- Control and exclude dates
 exclude       <- seq(make_date(2020, 01, 01), make_date(2020, 05, 31), "days")
 control_dates <- seq(make_date(2010, 01, 01), make_date(2019, 12, 31), "days")
-
-# -- Check that our expected values fit better (THIS IS JUST ONE EXAMPLE)
-x   <- "Netherlands"
-tmp <- compute_expected(counts  = filter(counts, country == x),
-                        exclude = exclude)
-ggplot() +
-  geom_point(aes(date, outcome), alpha=0.30, data = tmp) +
-  geom_line(aes(date, expected, color="mine"), data = tmp) +
-  geom_line(aes(date, expected_deaths, color="them"), data = filter(dat, country == x))
 
 # -- Computing percent_change
 percent_change <- map_df(countries, function(x){
@@ -83,7 +78,7 @@ percent_change <- map_df(countries, function(x){
                             filter(country == x) %>%
                             excess_model(.,
                                          start          = make_date(2020, 01, 01),
-                                         end            = make_date(2020, 05, 31),
+                                         end            = make_date(2020, 06, 30),
                                          exclude        = exclude,
                                          control.dates  = control_dates,
                                          model          = "correlated",
@@ -96,7 +91,30 @@ percent_change <- map_df(countries, function(x){
            country = x)
 })
 
-# -- Viz Percent change in mortality 
+# -- Three worst countries
+top_3 <- c("Spain", "Peru", "United Kingdom")
+
+# -- Percent change visualization 1
+ggplot() +
+  geom_hline(yintercept = 0, lty = 2, alpha = 0.40) +
+  geom_line(aes(date, fitted, group=country), color="gray", alpha=0.50, data = percent_change) +
+  # geom_ribbon(aes(date, ymin=lwr, ymax=upr, fill=country), alpha=0.50, data = filter(percent_change, country %in% top_3)) +
+  geom_line(aes(date, fitted, color=country), size=0.80, show.legend = FALSE, data = filter(percent_change, country %in% top_3)) +
+  geom_dl(aes(date, fitted, color=country, label=country), method=list(fontface="bold", "last.points"), data = filter(percent_change, country %in% top_3)) +
+  scale_y_continuous(labels = scales::percent,
+                     limits = c(-0.20, 1.30), 
+                     breaks = seq(-0.20, 1.20, by=0.20)) +
+  scale_x_date(date_breaks = "1 months",
+               date_labels = "%b %d",
+               limits = c(make_date(2020,01,01), make_date(2020,07,15))) +
+  scale_color_manual(name   = "",
+                     values = c("#252525", "#cb181d", "#2171b5")) +
+  ylab("Percent change from average") +
+  xlab("Date") +
+  ggtitle("Percent Increase in Mortality from Average") +
+  theme_bw()
+
+# -- Percent change visualization 2
 percent_change %>%
   ggplot(aes(date, fitted)) +
   geom_hline(yintercept = 0, lty=2, color="red2") +
@@ -115,7 +133,13 @@ percent_change %>%
         axis.title = element_text(face = "bold", color = "black"),
         plot.title = element_text(face = "bold", color = "black", size=18),
         plot.subtitle = element_text(face = "bold", color = "black"))
+### --------- ----------------------------- ---------
+### --------- Percent increase in mortality ---------
+### --------- ----------------------------- ---------
 
+### --------- ---------------------- ---------
+### --------- Excess death estiamtes ---------
+### --------- ---------------------- ---------
 # -- Computing excess deaths
 excess_deaths <- map_df(countries, function(x){
   
@@ -123,7 +147,7 @@ excess_deaths <- map_df(countries, function(x){
   fit <- suppressMessages(counts %>%
     filter(country == x) %>%
     excess_model(.,
-                 start          = make_date(2020, 01, 01),
+                 start          = make_date(2020, 03, 01),
                  end            = make_date(2020, 05, 31),
                  exclude        = exclude,
                  control.dates  = control_dates,
@@ -131,9 +155,12 @@ excess_deaths <- map_df(countries, function(x){
                  weekday.effect = FALSE))
   
   
-  excess_cumulative(fit, start = make_date(2020, 03, 01), end = make_date(2020, 05, 31)) %>%
+  excess_cumulative(fit, start = make_date(2020, 01, 01), end = make_date(2020, 06, 30)) %>%
     mutate(country = x)
-})
+}) %>% 
+  as_tibble() %>%
+  mutate(lwr = fitted - 1.96 * se, 
+         upr = fitted + 1.96 * se)
 
 # -- Viz cumulative excess deaths
 excess_deaths %>%
@@ -181,5 +208,321 @@ excess_deaths %>%
         axis.title = element_text(face = "bold", color = "black"),
         plot.title    = element_text(face = "bold", color = "black", size=18),
         plot.subtitle = element_text(face = "bold", color = "black"))
+### --------- ---------------------- ---------
+### --------- Excess death estiamtes ---------
+### --------- ---------------------- ---------
 
+### --------- --------------------------------------------------------------- ---------
+### --------- Comparsiong b|w excess deaths and covid19 for several countries ---------
+### --------- --------------------------------------------------------------- ---------
+# -- Loading covid19 data from european center for disease control
+eudat <- read.csv("https://opendata.ecdc.europa.eu/covid19/casedistribution/csv",
+                  na.strings = "", stringsAsFactors = FALSE,
+                  fileEncoding = "UTF-8-BOM") %>%
+  as_tibble() %>%
+  mutate(date = dmy(dateRep)) %>%
+  select(date, cases, deaths, countriesAndTerritories, popData2018) %>%
+  rename(country = countriesAndTerritories) %>%
+  arrange(date, country) %>%
+  filter(deaths >= 0) %>%
+  group_by(country) %>%
+  mutate(covid19 = cumsum(deaths),
+         country = gsub("_", " ", country)) %>%
+  ungroup() %>%
+  select(date, country, deaths, covid19)
+
+# -- Countries in this dataset
+eu_countries <- unique(eudat$country)
+
+# -- All countries
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  group_by(country) %>%
+  filter(date == max(date)) %>%
+  ungroup() %>%
+  mutate(difference = fitted - covid19,
+         lwr = difference - 1.96 * se,
+         upr = difference + 1.96 * se,
+         flag = difference > TRUE) %>%
+  ggplot(aes(reorder(country, difference), difference, color=flag)) +
+  geom_hline(yintercept = 0, lty=2, color="#252525") +
+  geom_errorbar(aes(ymin=lwr, ymax=upr), width = 0, show.legend = F) +
+  geom_point(size=2, show.legend = F) +
+  geom_point(size=2, pch=1, color="black") +
+  coord_flip() +
+  ylab("Difference") +
+  xlab("") +
+  ggtitle("Difference between Excess and Covid19 deaths",
+          subtitle = "by May 2020") +
+  scale_color_manual(name = "",
+                     values = c("#2171b5", "#cb181d")) +
+  scale_y_continuous(labels = scales::comma,
+                     breaks = seq(-20000, 40000, by=10000)) +
+  theme_minimal() +
+  theme(axis.title = element_text(face="bold"),
+        axis.text  = element_text(face="bold"),
+        plot.title     = element_text(face="bold"),
+        plot.subtitle  = element_text(face="bold"))
+
+# -- Italy: Excess deaths vs covid 19
+x <- "Italy"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                    values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
+
+
+# -- Spain: Excess deaths vs covid 19
+x <- "Spain"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                     values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
   
+# -- Peru: Excess deaths vs covid 19
+x <- "Peru"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                    values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
+
+# -- United Kingdom: Excess deaths vs covid 19
+x <- "United Kingdom"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                    values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
+
+# -- Sweden: Excess deaths vs covid 19
+x <- "Sweden"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                    values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
+
+# -- Belgium: Excess deaths vs covid 19
+x <- "Belgium"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                    values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
+
+# -- France: Excess deaths vs covid 19
+x <- "France"
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  ggplot(aes(date, fitted)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr, fill="Excess \ndeaths"), alpha=0.50, show.legend = FALSE) +
+  geom_line(aes(color="Excess \ndeaths")) +
+  geom_line(aes(date, covid19, color="Covid19 \ndeaths")) +
+  scale_color_manual(name="",
+                     values = c("#252525", "#cb181d")) +
+  scale_fill_manual(name="",
+                    values = c("#cb181d")) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_labels = "%b %d", limits = c(ymd("2020-03-01"), ymd("2020-06-01")),
+               breaks = c(ymd("2020-03-01"), ymd("2020-03-15"),
+                          ymd("2020-04-01"), ymd("2020-04-15"),
+                          ymd("2020-05-01"), ymd("2020-05-15"),
+                          ymd("2020-06-01"))) +
+  ylab("Cumulative deaths") +
+  xlab("Date") +
+  ggtitle(paste0("Excess deaths vs Covid-19 deaths in ", x), subtitle = "Mar 2020 to May 2020") +
+  theme_minimal() +
+  theme(legend.position   = c(0.20, 0.80),
+        legend.text       = element_text(face="bold"),
+        legend.direction  = "horizontal",
+        legend.title      = element_blank(),
+        legend.background = element_rect(color="black"))
+excess_deaths %>%
+  left_join(eudat, by=c("date", "country")) %>%
+  filter(country == x) %>%
+  filter(date == max(date)) %>%
+  mutate(dif = fitted - covid19, 
+         lwr = dif - 1.96 * se,
+         upr = dif + 1.96 * se) %>%
+  select(dif, lwr, upr)
+### --------- --------------------------------------------------------------- ---------
+### --------- Comparsiong b|w excess deaths and covid19 for several countries ---------
+### --------- --------------------------------------------------------------- ---------
