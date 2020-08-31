@@ -76,13 +76,12 @@ percent_change <- map_df(countries, function(x){
   print(x)
   fit <- suppressMessages(counts %>%
                             filter(country == x) %>%
+                            arrange(date) %>%
                             excess_model(.,
                                          start                = make_date(2020, 01, 01),
                                          end                  = make_date(2020, 06, 30),
                                          exclude              = exclude,
-                                         trend.knots.per.year = 1/2,
                                          control.dates        = control_dates,
-                                         model                = "correlated",
                                          weekday.effect       = FALSE))
   
   
@@ -93,26 +92,32 @@ percent_change <- map_df(countries, function(x){
 })
 
 # -- Three worst countries
-top_3 <- c("Spain", "Peru", "United Kingdom")
+top_3 <- c("Spain", "Peru", "United Kingdom", "Ecuador", "Chile")
+
+
+percent_change %>%
+  group_by(country) %>%
+  summarize(a = max(fitted)) %>%
+  arrange(desc(a))
 
 # -- Percent change visualization 1
 ggplot() +
   geom_hline(yintercept = 0, lty = 2, alpha = 0.40) +
-  geom_line(aes(date, fitted, group=country), color="gray", alpha=0.50, data = percent_change) +
-  # geom_ribbon(aes(date, ymin=lwr, ymax=upr, fill=country), alpha=0.50, data = filter(percent_change, country %in% top_3)) +
+  geom_line(aes(date, fitted, group=country), color="gray", alpha=0.10, data = percent_change) +
+  geom_ribbon(aes(date, ymin=lwr, ymax=upr, fill=country), alpha=0.20, show.legend = F, data = filter(percent_change, country %in% top_3)) +
   geom_line(aes(date, fitted, color=country), size=0.80, show.legend = FALSE, data = filter(percent_change, country %in% top_3)) +
   geom_dl(aes(date, fitted, color=country, label=country), method=list(fontface="bold", "last.points"), data = filter(percent_change, country %in% top_3)) +
-  scale_y_continuous(labels = scales::percent,
-                     limits = c(-0.45, 1.70), 
-                     breaks = seq(-0.40, 1.60, by=0.20)) +
+  scale_y_continuous(labels = scales::percent) +
   scale_x_date(date_breaks = "1 months",
                date_labels = "%b %d",
-               limits = c(make_date(2020,01,01), make_date(2020,07,15))) +
+               limits = c(make_date(2020,01,01), make_date(2020,07,30))) +
   scale_color_manual(name   = "",
-                     values = c("#252525", "#cb181d", "#2171b5")) +
-  ylab("Percent change from average") +
+                     values = c("#252525", "#cb181d", "#2171b5", "#E7B800", "#74c476")) +
+  scale_fill_manual(name   = "",
+                     values = c("#252525", "#cb181d", "#2171b5", "#E7B800", "#74c476")) +
+  
+  ylab("Percent increase in mortality from average") +
   xlab("Date") +
-  ggtitle("Percent Increase in Mortality from Average") +
   theme_bw()
 
 # -- Percent change visualization 2
@@ -146,14 +151,14 @@ excess_deaths <- map_df(countries, function(x){
   
   print(x)
   fit <- suppressMessages(counts %>%
-    filter(country == x) %>%
+                            filter(country == x) %>%
+                            arrange(date) %>%
+      
     excess_model(.,
                  start                = make_date(2020, 03, 01),
                  end                  = make_date(2020, 05, 31),
                  exclude              = exclude,
                  control.dates        = control_dates,
-                 trend.knots.per.year = 1/2,
-                 model                = "correlated",
                  weekday.effect       = FALSE))
   
   
@@ -223,7 +228,7 @@ eudat <- read.csv("https://opendata.ecdc.europa.eu/covid19/casedistribution/csv"
                   fileEncoding = "UTF-8-BOM") %>%
   as_tibble() %>%
   mutate(date = dmy(dateRep)) %>%
-  select(date, cases, deaths, countriesAndTerritories, popData2018) %>%
+  select(date, cases, deaths, countriesAndTerritories, popData2019) %>%
   rename(country = countriesAndTerritories) %>%
   arrange(date, country) %>%
   filter(deaths >= 0) %>%
