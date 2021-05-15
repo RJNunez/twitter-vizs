@@ -131,3 +131,45 @@ res %>%
                                title.hjust   = .5, 
                                barwidth      = unit(45, "lines"), 
                                barheight     = unit(0.50, "lines")))
+
+##
+tab <- res %>%
+  as_tibble() %>%
+  filter(municipio %in% c("Cataño", "Trujillo Alto", "Gurabo", "San Juan", "Dorado")) %>%
+  select(municipio, variable, proportion) %>%
+  pivot_wider(names_from  = variable,
+              values_from = proportion) %>%
+  mutate(poverty  = paste0(prettyNum(100 * poverty, digits = 4), "%"),
+         internet = paste0(prettyNum(100 * internet, digits = 4), "%"),
+         computer = paste0(prettyNum(100 * computer, digits = 4), "%"),
+         `% de Matricula en Fracaso (ENDI)` = paste0(prettyNum(c(30.69, 26.63, 23.90, 22.04, 20.80), digits = 4), "%")) %>%
+  select(municipio, `% de Matricula en Fracaso (ENDI)`, poverty, internet, computer) %>%
+  rename(`% de Hogares con subscripción de internet` = internet,
+         `% de Hogares con al menos una computadora` = computer,
+         `% de Pobreza` = poverty,
+         Municipio = municipio)
+kableExtra::kbl(tab) %>%
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria")
+
+
+res %>%
+  as_tibble() %>%
+  select(municipio, variable, proportion) %>%
+  filter(variable == "poverty") %>%
+  arrange(desc(proportion)) %>%
+  mutate(proportion = 100 * proportion)
+
+res %>%
+  as_tibble() %>%
+  select(municipio, variable, proportion) %>%
+  filter(variable == "internet") %>%
+  arrange(proportion) %>%
+  mutate(proportion = 100 * proportion)
+
+res %>%
+  as_tibble() %>%
+  select(municipio, variable, proportion) %>%
+  filter(variable == "computer") %>%
+  arrange(proportion) %>%
+  mutate(proportion = 100 * proportion)
+
